@@ -1,0 +1,37 @@
+{
+  "name": "botbye-nuxt",
+  "main": "index.js",
+  "version": "0.1.0",
+  "private": false,
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./index.js",
+      "require": "./index.js",
+      "types": "./index.d.ts"
+    },
+    "./server": {
+      "import": "./server.js",
+      "require": "./server.js",
+      "types": "./server.d.ts"
+    },
+    "./module": {
+      "import": "./module.js",
+      "require": "./module.js",
+      "types": "./module.d.ts"
+    }
+  },
+  "dependencies": {
+    "botbye-client": "^1.0.13",
+    "@nuxt/kit": "^3.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.1",
+    "nuxt": "^4.1.0",
+    "botbye-node-core": "^1.0.6"
+  },
+  "peerDependencies": {
+    "@types/node": "^24.3.1",
+    "nuxt": "^4.1.0"
+  }
+}
