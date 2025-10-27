@@ -17,9 +17,9 @@ yarn add botbye-nuxt
 1. Init BotBye! with `server-key`
 
 ```typescript
-import {initBotByeServerKey} from "botbye-nuxt/server";
+import {initBotBye} from "botbye-nuxt/server";
 
-initBotByeServerKey({
+initBotBye({
     /* Use your server-key */
     serverKey: "00000000-0000-0000-0000-000000000000"
 })
@@ -35,8 +35,6 @@ import {botByeRequest, initBotBye} from "botbye-nuxt/server";
 export default defineEventHandler(async (event) => {
     const reqHeader = getHeaders(requestEvent);
     const token = getToken(reqHeader);
-    /* Use your server-key */
-    initBotBye({serverKey: "00000000-0000-0000-0000-000000000000"});
 
     const botByeResponse = await botByeRequest({requestEvent: event, token: token});
 
@@ -79,16 +77,15 @@ export default defineNuxtConfig({
     import {runChallenge} from "botbye-nuxt";
 
     async function handleSubmit() {
-
-    const token = await runChallenge();
-
-    const res = await $fetch("/api/login", {
-    method: "GET",
-    headers: {
-    ["x-botbye-token"]: token
-}
-})
-}
+        const token = await runChallenge();
+    
+        const res = await $fetch("/api/login", {
+                method: "GET",
+                headers: {
+                ["x-botbye-token"]: token
+            }
+        })
+    }
 
 </script>
 ```
