@@ -3,8 +3,26 @@ const MODULE_NAME = "NodeJS-NuxtJS";
 const MODULE_VERSION = "0.1.0";
 let SERVER_KEY = "";
 let API = "verify.botbye.com";
+const sendInitRequest = async (serverKey) => {
+    try {
+        const data = await $fetch(`https://${API}/init-request/v1`, {
+            method: "POST",
+            body: JSON.stringify({ serverKey }),
+        });
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        if (data.status === "ok") {
+            console.log('[BotBye] Inited');
+        }
+    }
+    catch (e) {
+        console.error(`[BotBye] Init Error: `, e);
+    }
+};
 const initBotBye = ({ serverKey }) => {
     SERVER_KEY = serverKey;
+    sendInitRequest(SERVER_KEY);
 };
 const extractIp = (forwardedFor) => {
     const DEFAULT = "0.0.0.0";

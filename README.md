@@ -14,16 +14,17 @@ yarn add botbye-nuxt
 
 ### Server
 
-1. Init BotBye! with `server-key`
+1. Create BotBye! init plugin in `server/plugins` and init with `server-key`
 
 ```typescript
-import {initBotBye} from "botbye-nuxt/server";
+import { initBotBye } from "botbye-nuxt/server";
 
-initBotBye({
-    /* Use your server-key */
-    serverKey: "00000000-0000-0000-0000-000000000000"
+export default defineNitroPlugin(() => {
+   initBotBye({
+      /* Use your server-key */
+      serverKey: "00000000-0000-0000-0000-000000000000" 
+   });
 })
-
 ```
 
 2. Add request validation
