@@ -1,5 +1,6 @@
 import { defineNuxtPlugin, useRuntimeConfig } from "#imports";
 import { initChallenges } from 'botbye-client';
+import { MODULE_NAME, MODULE_VERSION } from "./constants";
 export default defineNuxtPlugin(() => {
     const config = useRuntimeConfig();
     const options = {
@@ -8,6 +9,12 @@ export default defineNuxtPlugin(() => {
         withoutSessions: config.public.withoutSessions,
         withoutReload: config.public.withoutReload,
         withoutRemoteStorage: config.public.withoutRemoteStorage,
+        internal: {
+            integration: {
+                version: MODULE_VERSION,
+                type: MODULE_NAME,
+            }
+        },
     };
     try {
         initChallenges(options);

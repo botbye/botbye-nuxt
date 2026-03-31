@@ -1,6 +1,5 @@
 import { getHeaders } from "h3";
-const MODULE_NAME = "NodeJS-NuxtJS";
-const MODULE_VERSION = "0.1.0";
+import { MODULE_NAME, MODULE_VERSION } from "./constants";
 let SERVER_KEY = "";
 let API = "verify.botbye.com";
 const sendInitRequest = async (serverKey) => {
@@ -8,6 +7,10 @@ const sendInitRequest = async (serverKey) => {
         const data = await $fetch(`https://${API}/init-request/v1`, {
             method: "POST",
             body: JSON.stringify({ serverKey }),
+            headers: {
+                ['Module-Name']: MODULE_NAME,
+                ['Module-Version']: MODULE_VERSION,
+            }
         });
         if (data.error) {
             throw new Error(data.error);

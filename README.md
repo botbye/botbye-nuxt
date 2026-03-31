@@ -57,7 +57,7 @@ export default defineEventHandler(async (event) => {
 export default defineNuxtConfig({
     /* some config*/
     modules: ["botbye-nuxt/module"],
-    'botbye-module': {
+    botbyeModule: {
         inject: true
     },
     runtimeConfig: {

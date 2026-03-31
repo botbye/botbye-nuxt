@@ -2,7 +2,7 @@ import { addPlugin, createResolver, defineNuxtModule } from '@nuxt/kit';
 export default defineNuxtModule({
     meta: {
         name: 'botbye-module',
-        configKey: 'nuxt-plugin',
+        configKey: 'botbyeModule',
     },
     setup(options) {
         const resolver = createResolver(import.meta.url);

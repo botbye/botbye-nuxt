@@ -1,7 +1,7 @@
 {
   "name": "botbye-nuxt",
   "main": "index.js",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": false,
   "types": "index.d.ts",
   "exports": {
@@ -22,7 +22,7 @@
     }
   },
   "dependencies": {
-    "botbye-client": "^1.2.0",
+    "botbye-client": "^1.2.1",
     "@nuxt/kit": "^3.19.0"
   },
   "devDependencies": {
