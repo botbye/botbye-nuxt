@@ -1,92 +1,464 @@
-# Nuxt BotBye!
+# @botbye/nuxt
+
+[BotBye!](https://botbye.com) integration for [Nuxt](https://nuxt.com/) applications.
+
+Full documentation: https://botbye.com/docs/server-side/node-js/nuxt
 
 ## Install
 
-```bash 
-npm i botbye-nuxt
+```bash
+npm i @botbye/nuxt
 ```
 
-```bash 
-yarn add botbye-nuxt
+```bash
+yarn add @botbye/nuxt
 ```
+
+Requires `nuxt >= 3` as a peer dependency.
+
+## Package exports
+
+The package exposes three entry points:
+
+- `@botbye/nuxt/server` — server-side SDK: `init`, `evaluate`, `dev`, `factory`
+- `@botbye/nuxt/client` — client-side utilities: `initChallenges`, `runChallenge`
+- `@botbye/nuxt/module` — Nuxt module for automatic client-side initialization
+
+## Client-side integration
+
+The `@botbye/nuxt/client` entry point provides utilities for initializing the BotBye client-side SDK and running challenge flows in the browser.
+
+### Using the Nuxt module (recommended)
+
+Add the module to `nuxt.config.ts` to enable automatic client initialization and TypeScript support for `useRuntimeConfig().public.botbye`:
+
+```typescript
+// nuxt.config.ts
+export default defineNuxtConfig({
+  modules: ["@botbye/nuxt/module"],
+
+  botbyeModule: {
+    inject: true,
+  },
+
+  runtimeConfig: {
+    public: {
+      botbye: {
+        // Use your client key
+        clientKey: "00000000-0000-0000-0000-000000000000",
+      },
+    },
+  },
+});
+```
+
+When `inject: true`, the module registers a client plugin that calls `initChallenges` automatically using `runtimeConfig.public.botbye`.
+
+Once the SDK is initialized, call `runChallenge()` anywhere in client-side code to acquire a token and pass it to your API:
+
+```typescript
+import { runChallenge } from "@botbye/nuxt/client";
+
+const onLoginClick = async () => {
+  const token = await runChallenge();
+
+  await $fetch("/api/login", {
+    method: "POST",
+    headers: {
+      // "x-botbye-token" is an example — pass the token from wherever you store it
+      "x-botbye-token": token,
+    },
+    body: { email, password },
+  });
+};
+```
+
+### Manual initialization
+
+If you prefer not to use `inject: true`, call `initChallenges` directly in a client-side Nuxt plugin:
+
+```typescript
+// plugins/botbye.client.ts
+import { initChallenges } from "@botbye/nuxt/client";
+
+export default defineNuxtPlugin(() => {
+  initChallenges({
+    // Use your client key
+    clientKey: "00000000-0000-0000-0000-000000000000",
+  });
+});
+```
+
+### User identification
+
+Call `setUserId` after a successful authentication to associate the current session with a user.
+This helps BotBye detect multi-account abuse.
+
+```typescript
+import { setUserId } from "@botbye/nuxt/client";
+
+const response = await login({ username, password });
+
+if (response.userId) {
+  setUserId(response.userId);
+}
+```
+
+## Configuration
+
+Call `init` once at server startup with your server key. The recommended place in Nuxt is a Nitro server plugin:
+
+```typescript
+// server/plugins/botbye.ts
+import { init } from "@botbye/nuxt/server";
+
+export default defineNitroPlugin(() => {
+  init({
+    // Use your project server-key
+    serverKey: "00000000-0000-0000-0000-000000000000",
+  });
+});
+```
+
+### `init` options
+
+| Option | Type | Required | Description |
+|---|---|---|---|
+| `serverKey` | `string` | Yes | Server key from your BotBye project |
+| `url` | `string` | No | Override BotBye API endpoint (default: `https://verify.botbye.com`) |
+| `logger.level` | `"error" \| "warn" \| "info" \| "debug" \| "log"` | No | Log level (default: `"info"`) |
+| `logger.logger` | `TLogger` | No | Custom logger instance implementing `{ error, warn, info, debug, log }` |
+| `timeouts.evaluate` | `number` | No | Timeout in milliseconds for each `evaluate` call |
 
 ## Usage
 
-### Server
+Call `evaluate` in API handlers or server middleware where bot protection is needed. It accepts an event object describing what you know about the request and the context around it, and returns a promise that resolves to a decision.
 
-1. Create BotBye! init plugin in `server/plugins` and init with `server-key`
+There are three event types — `validate`, `risk`, and `full` — each suited for a different layer of your application.
+
+---
+
+### `validate` — edge-level bot check
+
+Use at the outermost layer — server middleware or API handler — when you just want to know: **was this request made by a bot?** No user or domain context needed.
+
+**Event fields:**
 
 ```typescript
-import { initBotBye } from "botbye-nuxt/server";
+{
+  type: "validate";
 
-export default defineNitroPlugin(() => {
-   initBotBye({
-      /* Use your server-key */
-      serverKey: "00000000-0000-0000-0000-000000000000" 
-   });
-})
+  request:
+    // Option A: pass the H3Event object directly — SDK extracts everything automatically
+    | { request: H3Event; token?: string | null }
+    // Option B: construct request info manually
+    | { ip: string; headers: Record<string, string>; requestMethod?: string | null; requestUri?: string | null; token?: string | null };
+
+  customFields?: Record<string, string>;
+
+  config?: {
+    bypassBotValidation?: boolean | null;
+  };
+}
 ```
 
-2. Add request validation
+The SDK extracts IP, headers, method, and URI from the `H3Event` object automatically. You can also pass request info manually — see Option B above. The `token` is a one-time token generated by the [BotBye client-side SDK](https://botbye.com/docs/client-side/npm-module) that contains information about the user's device. Pass whatever the client sent; if no token is received, the decision will be `"BLOCK"`.
 
-```typescript
-
-import {botByeRequest, initBotBye} from "botbye-nuxt/server";
+```javascript
+import { evaluate } from "@botbye/nuxt/server";
 
 export default defineEventHandler(async (event) => {
-    const reqHeader = getHeaders(requestEvent);
-    const token = getToken(reqHeader);
+  const result = await evaluate({
+    type: "validate",
+    request: {
+      request: event,
+      // "x-botbye-token" is an example — pass the token from wherever you store it
+      token: getRequestHeader(event, "x-botbye-token"),
+    },
+  });
 
-    const botByeResponse = await botByeRequest({requestEvent: event, token: token});
+  if (result.decision === "BLOCK") {
+    throw createError({ statusCode: 403, message: "Forbidden" });
+  }
 
-    const isAllowed = botByeResponse.result.isAllowed;
-    if (!isAllowed) {
-        return new Error("Error!");
-    }
-
-    return /*some data*/
+  // proceed normally
 });
-
 ```
 
-### Client
+---
 
-1. Init BotBye! using botbye-nuxt/module
+### `risk` — domain-level risk scoring
+
+Use inside API handlers that already know the user: auth, payments, account management. The purpose shifts from "is this a bot?" to **"is something suspicious happening for this user?"** — credential stuffing, account takeover, account sharing, logins from a new geo.
+
+**Event fields:**
 
 ```typescript
-export default defineNuxtConfig({
-    /* some config*/
-    modules: ["botbye-nuxt/module"],
-    botbyeModule: {
-        inject: true
+{
+  type: "risk";
+
+  request:
+    | { ip: string; headers?: Record<string, string>; requestMethod?: string | null; requestUri?: string | null; token?: string | null }
+    | { request: H3Event };
+
+  event: {
+    type: string;   // e.g. "login", "password_change", "checkout"
+    status: "ATTEMPTED" | "SUCCESSFUL" | "FAILED" | "UNKNOWN";
+  };
+
+  user: {
+    accountId: string;
+    username?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  };
+
+  customFields?: Record<string, string>;
+  botbyeResult?: string;
+
+  config?: {
+    bypassBotValidation?: boolean | null;
+  };
+}
+```
+
+`event` and `user` are the key fields here — they define what action is being performed and who is performing it, which is what drives the risk score. `ip` is equally important: BotBye tracks which IPs access the account to detect patterns like account sharing, credential stuffing, and suspicious geo logins. Pass it directly as `{ ip }`, or pass the H3Event object if that's more convenient.
+
+```javascript
+import { evaluate } from "@botbye/nuxt/server";
+
+// Inside an API handler, after a login attempt
+async function onLoginAttempt({ ip, userId, email, loginSucceeded }) {
+  const result = await evaluate({
+    type: "risk",
+    request: {
+      ip,
+      headers: {},
     },
-    runtimeConfig: {
-        public: {
-            /* Use your client-key */
-            clientKey: "00000000-0000-0000-0000-000000000000"
-        }
-    }
-})
+    event: {
+      type: "login",
+      status: loginSucceeded ? "SUCCESSFUL" : "FAILED",
+    },
+    user: {
+      accountId: userId,
+      email,
+    },
+  });
+
+  if (result.decision === "BLOCK") {
+    // Lock account, trigger MFA, send alert, etc.
+  }
+}
 ```
 
-2. To run challenge and generate BotBye! token call runChallenge. Send this token in any convenient way to the server.
-   For example in ["x-botbye-token"] header:
+---
 
-```typescript jsx
+### `full` — edge check and domain scoring in one call
 
-<script setup>
-    import {runChallenge} from "botbye-nuxt";
+Use when you have all context at once: raw request, token, user, and event. A login endpoint is a typical example — it receives the HTTP request and immediately knows the user and outcome.
 
-    async function handleSubmit() {
-        const token = await runChallenge();
-    
-        const res = await $fetch("/api/login", {
-                method: "GET",
-                headers: {
-                ["x-botbye-token"]: token
-            }
-        })
-    }
+**Event fields:**
 
-</script>
+```typescript
+{
+  type: "full";
+
+  request:
+    | { request: H3Event; token?: string | null }
+    | { ip: string; headers: Record<string, string>; requestMethod?: string | null; requestUri?: string | null; token?: string | null };
+
+  event: {
+    type: string;
+    status: "ATTEMPTED" | "SUCCESSFUL" | "FAILED" | "UNKNOWN";
+  };
+
+  user: {
+    accountId: string;
+    username?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  };
+
+  customFields?: Record<string, string>;
+
+  config?: {
+    bypassBotValidation?: boolean | null;
+  };
+}
 ```
+
+Equivalent to running `validate` and `risk` in a single call.
+
+```javascript
+import { evaluate } from "@botbye/nuxt/server";
+
+// server/api/auth/login.post.js
+export default defineEventHandler(async (event) => {
+  const { email, password } = await readBody(event);
+  const user = await findUser(email);
+  const loginSucceeded = user && (await checkPassword(user, password));
+
+  const result = await evaluate({
+    type: "full",
+    request: {
+      request: event,
+      // "x-botbye-token" is an example — pass the token from wherever you store it
+      token: getRequestHeader(event, "x-botbye-token"),
+    },
+    event: {
+      type: "login",
+      status: loginSucceeded ? "SUCCESSFUL" : "FAILED",
+    },
+    user: {
+      accountId: user?.id ?? "unknown",
+      email,
+    },
+  });
+
+  if (result.decision === "BLOCK") {
+    throw createError({ statusCode: 403, message: "Forbidden" });
+  }
+
+  // proceed normally
+});
+```
+
+---
+
+## Response
+
+`evaluate` always returns a `Promise<TEvaluationResult>`:
+
+```typescript
+type TEvaluationResult =
+  | {
+      decision: "ALLOW" | "BLOCK" | "CHALLENGE";
+      request_id: string;
+      risk_score: number;
+      scores: Record<string, number>;
+      signals: string[];
+      config: { bypass_bot_validation: boolean };
+    }
+  | {
+      decision: "ALLOW" | "BLOCK" | "CHALLENGE";
+      config: { bypass_bot_validation: boolean };
+      error: { message: string };
+    };
+```
+
+Check `result.decision` to decide how to handle the request:
+
+- `"ALLOW"` — request appears legitimate, proceed normally
+- `"BLOCK"` — bot or suspicious activity detected, block the request
+- `"CHALLENGE"` — uncertain, consider issuing a CAPTCHA, MFA or additional verification step
+
+When the response contains an `error` field, BotBye could not evaluate the request (e.g. invalid server key). In that case `decision` defaults to `"ALLOW"` so that a misconfiguration does not block real users — but you should monitor and fix the underlying error.
+
+### Response examples
+
+Blocked (bot detected):
+
+```json
+{
+  "request_id": "f77b2abd-c5d7-44f0-be4f-174b04876583",
+  "decision": "BLOCK",
+  "risk_score": 0.95,
+  "scores": { "bot": 0.95 },
+  "signals": ["AutomationTool"],
+  "config": { "bypass_bot_validation": false }
+}
+```
+
+Allowed:
+
+```json
+{
+  "request_id": "f77b2abd-c5d7-44f0-be4f-174b04876583",
+  "decision": "ALLOW",
+  "risk_score": 0.05,
+  "scores": { "bot": 0.05, "ato": 0.02 },
+  "signals": [],
+  "config": { "bypass_bot_validation": false }
+}
+```
+
+Challenge:
+
+```json
+{
+  "request_id": "f77b2abd-c5d7-44f0-be4f-174b04876583",
+  "decision": "CHALLENGE",
+  "risk_score": 0.65,
+  "scores": { "bot": 0.65 },
+  "signals": ["SuspiciousFingerprint"],
+  "challenge": { "type": "captcha", "token": "..." },
+  "config": { "bypass_bot_validation": false }
+}
+```
+
+Invalid `serverKey`:
+
+```json
+{
+  "decision": "ALLOW",
+  "config": { "bypass_bot_validation": true },
+  "error": { "message": "[BotBye] Bad Request: Invalid Server Key" }
+}
+```
+
+## Middleware usage
+
+Nitro server middleware (`server/middleware/`) runs before every matched request and is the best place to apply edge-level bot protection globally:
+
+```javascript
+// server/middleware/botbye.js
+import { evaluate } from "@botbye/nuxt/server";
+
+export default defineEventHandler(async (event) => {
+  const result = await evaluate({
+    type: "validate",
+    request: {
+      request: event,
+      // "x-botbye-token" is an example — pass the token from wherever you store it
+      token: getRequestHeader(event, "x-botbye-token"),
+    },
+  });
+
+  if (result.decision === "BLOCK") {
+    throw createError({ statusCode: 403, message: "Forbidden" });
+  }
+});
+```
+
+## Advanced: multiple instances
+
+Use `factory` to create independent SDK instances (useful when protecting multiple projects from one service):
+
+```javascript
+import { factory } from "@botbye/nuxt/server";
+
+const sdk = factory();
+
+sdk.init({
+  // Use your project server-key
+  serverKey: "00000000-0000-0000-0000-000000000000",
+});
+
+const result = await sdk.evaluate({
+  type: "validate",
+  request: { request: event, token },
+});
+```
+
+## Dev utilities
+
+```javascript
+import { dev } from "@botbye/nuxt/server";
+
+dev.setLoggerLevel("debug"); // "error" | "warn" | "info" | "debug" | "log"
+```
+
+## Documentation
+
+- Web: https://botbye.com/docs/server-side/node-js/nuxt
+- Markdown (for AI tools and agents): https://botbye.com/docs/server-side/node-js/nuxt.md
