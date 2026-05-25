@@ -23,23 +23,20 @@ declare const init: (options: import("@botbye/node-core").TInitOptions) => void,
         email?: import("@botbye/node-core").TNullable<string>;
         phone?: import("@botbye/node-core").TNullable<string>;
     };
-    config?: {
-        bypassBotValidation?: import("@botbye/node-core").TNullable<boolean>;
-    };
     customFields?: {
         [x: string]: string;
     };
 } | {
     type: "risk";
     request: {
-        request: H3Event<import("h3").EventHandlerRequest>;
-        token?: import("@botbye/node-core").TNullable<string>;
-    } | {
         ip: string;
         token?: import("@botbye/node-core").TNullable<string>;
         requestMethod?: import("@botbye/node-core").TNullable<string>;
         requestUri?: import("@botbye/node-core").TNullable<string>;
         headers?: import("@botbye/node-core").TRequestInfo["headers"];
+    } | {
+        request: H3Event<import("h3").EventHandlerRequest>;
+        token?: import("@botbye/node-core").TNullable<string>;
     };
     event: {
         type: string;
@@ -50,9 +47,6 @@ declare const init: (options: import("@botbye/node-core").TInitOptions) => void,
         username?: import("@botbye/node-core").TNullable<string>;
         email?: import("@botbye/node-core").TNullable<string>;
         phone?: import("@botbye/node-core").TNullable<string>;
-    };
-    config?: {
-        bypassBotValidation?: import("@botbye/node-core").TNullable<boolean>;
     };
     customFields?: {
         [x: string]: string;
@@ -69,9 +63,6 @@ declare const init: (options: import("@botbye/node-core").TInitOptions) => void,
     } | {
         request: H3Event<import("h3").EventHandlerRequest>;
         token?: import("@botbye/node-core").TNullable<string>;
-    };
-    config?: {
-        bypassBotValidation?: import("@botbye/node-core").TNullable<boolean>;
     };
     customFields?: {
         [x: string]: string;

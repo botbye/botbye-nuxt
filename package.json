@@ -1,6 +1,6 @@
 {
   "name": "@botbye/nuxt",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "BotBye! integration for Nuxt",
   "type": "module",
   "exports": {
@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "@botbye/client": "^2.0.0",
-    "@botbye/node-core": "^2.0.0"
+    "@botbye/node-core": "^2.1.1"
   },
   "peerDependencies": {
     "nuxt": ">=3"
