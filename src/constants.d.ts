@@ -1,5 +1,5 @@
 declare const MODULE_NAME = "NUXT";
-declare const MODULE_VERSION = "2.1.0";
+declare const MODULE_VERSION = "2.2.0";
 type TWithInternal = {
     internal: {
         integration: {

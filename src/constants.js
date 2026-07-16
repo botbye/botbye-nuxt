@@ -1,5 +1,5 @@
 const MODULE_NAME = "NUXT";
-const MODULE_VERSION = "2.1.0";
+const MODULE_VERSION = "2.2.0";
 const WITH_INTERNAL = {
     internal: {
         integration: {

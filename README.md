@@ -423,7 +423,7 @@ Challenge:
   "risk_score": 0.65,
   "scores": { "bot": 0.65 },
   "signals": ["SuspiciousFingerprint"],
-  "challenge": { "type": "captcha", "token": "..." }
+  "challenge": { "type": "CAPTCHA", "token": "..." }
 }
 ```
 
@@ -486,6 +486,98 @@ const result = await sdk.evaluate({
 import { dev } from "@botbye/nuxt/server";
 
 dev.setLoggerLevel("debug"); // "error" | "warn" | "info" | "debug" | "log"
+```
+
+## Anti-Phishing
+
+BotBye's anti-phishing detects look-alike sites that clone your pages to steal credentials. This integration serves the detection **catcher** from your own origin, so the BotBye domain stays hidden from the client.
+
+- [Anti-Phishing Protection overview](https://botbye.com/docs/anti-phishing/overview)
+- [Why a server-side integration is needed](https://botbye.com/docs/anti-phishing/overview#server-integration)
+
+Anti-phishing is identified by its own `clientKey` (available in your Phishing Project in the Dashboard), not the server key used by `evaluate`, so it is configured separately.
+
+### Init
+
+Call `phishing.init` once at server startup — the same Nitro plugin used for `init` works well:
+
+```typescript
+// server/plugins/botbye.ts
+import { phishing } from "@botbye/nuxt/server";
+
+export default defineNitroPlugin(() => {
+  phishing.init({
+    // clientKey from your Phishing Project on the Admin Dashboard
+    clientKey: "00000000-0000-0000-0000-000000000000",
+  });
+});
+```
+
+### Configuration
+
+| Option | Type | Required | Description |
+|---|---|---|---|
+| `clientKey` | `string` | Yes | `clientKey` from your Phishing Project on the Admin Dashboard |
+| `url` | `string` | No | Override BotBye API endpoint (default: `https://verify.botbye.com`) |
+| `logger.level` | `"error" \| "warn" \| "info" \| "debug" \| "log"` | No | Log level (default: `"info"`) |
+| `logger.logger` | `TLogger` | No | Custom logger instance implementing `{ error, warn, info, debug, log }` |
+| `timeouts.fetchCatcher` | `number` | No | Timeout in milliseconds for each `fetchCatcher` call |
+
+### Usage
+
+Anti-phishing needs **two routes on your own origin**, each proxied through `fetchCatcher`. Define them as Nitro server routes:
+
+- **SVG route** — serves the SVG catcher. This is the URL your [client](https://botbye.com/docs/anti-phishing/integrations/client/js-tag#getcatcher-options) passes to `getCatcher({ url })`.
+- **PNG route** — serves the PNG that the SVG references (via `innerPngUrl`).
+
+The paths are arbitrary — name the routes however you like. Pass the `H3Event` as `request` and the `format`. For the SVG, `innerPngUrl` must be the **absolute URL** of your PNG route — the browser loads that PNG directly from your origin.
+
+```typescript
+// server/routes/botbye-catcher.svg.get.ts
+import { phishing } from "@botbye/nuxt/server";
+
+// Absolute URL of your PNG endpoint — the SVG catcher references it through innerPngUrl.
+const PNG_CATCHER_URL = "https://your-site.example/botbye-catcher.png";
+
+export default defineEventHandler(async (event) => {
+  const catcher = await phishing.fetchCatcher({
+    request: event,
+    format: "svg",
+    innerPngUrl: PNG_CATCHER_URL, // absolute URL of the PNG endpoint below
+  });
+
+  setResponseStatus(event, catcher.status);
+  setResponseHeaders(event, catcher.headers);
+
+  return catcher.body;
+});
+```
+
+```typescript
+// server/routes/botbye-catcher.png.get.ts
+import { phishing } from "@botbye/nuxt/server";
+
+export default defineEventHandler(async (event) => {
+  const catcher = await phishing.fetchCatcher({ request: event, format: "png" });
+
+  setResponseStatus(event, catcher.status);
+  setResponseHeaders(event, catcher.headers);
+
+  return catcher.body;
+});
+```
+
+We recommend embedding the **SVG catcher**: it is designed to keep tracking even when a phishing site copies all of your assets to its own infrastructure (the PNG route exists because the SVG catcher relies on it).
+
+#### Multiple instances
+
+`phishing` is a ready default instance. Use `phishingFactory()` to create isolated instances for multiple projects.
+
+```typescript
+import { phishingFactory } from "@botbye/nuxt/server";
+
+const phishing = phishingFactory();
+phishing.init({ clientKey: "00000000-0000-0000-0000-000000000000" });
 ```
 
 ## Documentation

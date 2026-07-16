@@ -29,10 +29,10 @@ declare const init: (options: import("@botbye/node-core").TInitOptions) => void,
 } | {
     type: "risk";
     request: {
+        requestUri?: import("@botbye/node-core").TNullable<string>;
         ip: string;
         token?: import("@botbye/node-core").TNullable<string>;
         requestMethod?: import("@botbye/node-core").TNullable<string>;
-        requestUri?: import("@botbye/node-core").TNullable<string>;
         headers?: import("@botbye/node-core").TRequestInfo["headers"];
     } | {
         request: H3Event<import("h3").EventHandlerRequest>;
@@ -73,4 +73,5 @@ declare const init: (options: import("@botbye/node-core").TInitOptions) => void,
     getLogger(): import("@botbye/node-core").TLogger;
 };
 export { init, evaluate, dev, factory, };
+export { phishing, phishingFactory, } from "./phishing.js";
 export type * from "@botbye/node-core";
